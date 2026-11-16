@@ -1,0 +1,37 @@
+spring:
+  application:
+    name: placemate
+  datasource:
+    url: ${DB_URL:jdbc:postgresql://localhost:5433/placemate}
+    username: placemate
+    password: ${DB_PASSWORD:placemate}
+  jpa:
+    hibernate:
+      ddl-auto: update
+    open-in-view: false
+  ai:
+    ollama:
+      base-url: http://localhost:11434
+      init:
+        pull-model-strategy: when_missing
+      chat:
+        options:
+          model: llama3.2:3b
+          temperature: 0.2
+      embedding:
+        options:
+          model: nomic-embed-text
+    vectorstore:
+      pgvector:
+        initialize-schema: true
+        index-type: HNSW
+        distance-type: COSINE_DISTANCE
+        dimensions: 768   # nomic-embed-text output size
+
+placemate:
+  rag:
+    top-k: 3              # how many tools are sent to the LLM per request
+  chat:
+    max-steps: 5          # safety cap on the tool-calling loop
+    conversation-ttl-minutes: 30
+

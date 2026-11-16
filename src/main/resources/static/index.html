@@ -1,0 +1,501 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>PlaceMate</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,500;12..96,700&family=Onest:wght@400;500;600&display=swap" rel="stylesheet">
+<style>
+  :root {
+    --paper: #f1f3ee;
+    --ink: #16231f;
+    --ink-soft: #56655f;
+    --rule: #cfd6cc;
+    --past: #8fa39a;
+    --board: #1d3a33;
+    --chalk: #e9efe6;
+    --chalk-dim: #a3b8ad;
+    --chalk-rule: #3b5a51;
+    --hl: #f4d03f;
+    --pen-red: #b8402f;
+    --chalk-red: #ffb4a6;
+    --display: "Bricolage Grotesque", "Onest", system-ui, sans-serif;
+    --text: "Onest", system-ui, -apple-system, "Segoe UI", sans-serif;
+    color-scheme: light;
+  }
+  * { box-sizing: border-box; }
+  html, body { height: 100%; }
+  body {
+    margin: 0;
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) minmax(360px, 440px);
+    background: var(--paper);
+    color: var(--ink);
+    font: 400 15px/1.5 var(--text);
+  }
+  button, textarea { font: inherit; color: inherit; }
+  button { cursor: pointer; }
+  :focus-visible { outline: 2px solid var(--ink); outline-offset: 2px; }
+  .board :focus-visible { outline-color: var(--hl); }
+  .sr { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; }
+
+  /* ------------------------------------------------------------ desk */
+  .desk { height: 100dvh; overflow-y: auto; padding: 2rem clamp(1.25rem, 4vw, 3.25rem) 4rem; }
+  .masthead { display: flex; justify-content: space-between; align-items: baseline; margin-bottom: 2.5rem; }
+  .masthead h1 { margin: 0; font: 700 1.9rem/1 var(--display); letter-spacing: -0.02em; }
+  .masthead time { color: var(--ink-soft); }
+
+  .section { margin-bottom: 3rem; }
+  .section h2 { display: flex; align-items: baseline; gap: .6rem; margin: 0 0 .35rem; font: 700 1.2rem/1.2 var(--display); letter-spacing: -0.01em; }
+  .section h2 span { font: 400 .95rem var(--text); color: var(--ink-soft); }
+  .caption { margin: 0 0 1rem; color: var(--ink-soft); font-size: .875rem; max-width: 60ch; }
+
+  .two { display: grid; grid-template-columns: minmax(0, 1.25fr) minmax(0, 1fr); gap: 3.5rem; }
+
+  .empty { margin: .5rem 0 0; padding: 1rem 0; border-top: 1px solid var(--rule); color: var(--ink-soft); max-width: 56ch; }
+  .empty button { padding: 0; border: 0; background: none; color: var(--ink); text-decoration: underline; text-underline-offset: 3px; }
+
+  /* applications */
+  .cols, .app { display: grid; grid-template-columns: minmax(0, 1.3fr) minmax(240px, 1fr) 4.5rem; gap: 1.25rem; align-items: center; }
+  .cols { padding: 0 0 .4rem; color: var(--ink-soft); font-size: .8rem; }
+  .cols .track-head, .track { display: grid; grid-template-columns: repeat(4, 1fr); gap: 4px; }
+  .cols .track-head span { text-align: left; }
+  .apps { list-style: none; margin: 0; padding: 0; border-top: 1px solid var(--ink); }
+  .app { padding: .85rem 0; border-bottom: 1px solid var(--rule); }
+  .who strong { display: block; font-weight: 600; }
+  .who span { color: var(--ink-soft); font-size: .875rem; }
+  .seg { height: 6px; border-radius: 1px; background: var(--rule); }
+  .seg.past { background: var(--past); }
+  .seg.now { background: var(--ink); }
+  .rejected { color: var(--pen-red); font-weight: 500; font-size: .875rem; }
+  .app.is-rejected .who { opacity: .6; }
+  .when { color: var(--ink-soft); font-size: .875rem; text-align: right; font-variant-numeric: tabular-nums; }
+
+  /* practice */
+  .topics, .reminders { list-style: none; margin: 0; padding: 0; border-top: 1px solid var(--ink); }
+  .topic { display: grid; grid-template-columns: 7.5rem minmax(0, 1fr) 2rem; gap: 1rem; align-items: center; padding: .5rem 0; border-bottom: 1px solid var(--rule); }
+  .topic .name { justify-self: start; }
+  .topic.weak .name { background: linear-gradient(transparent 52%, var(--hl) 52%); }
+  .bar { height: 6px; background: var(--rule); border-radius: 1px; }
+  .bar i { display: block; height: 100%; background: var(--ink); border-radius: 1px; }
+  .topic .n { text-align: right; font-variant-numeric: tabular-nums; font-weight: 500; }
+
+  .reminder { display: flex; justify-content: space-between; gap: 1rem; padding: .7rem 0; border-bottom: 1px solid var(--rule); }
+  .reminder .due { color: var(--ink-soft); font-size: .875rem; white-space: nowrap; }
+  .reminder.late .due { color: var(--pen-red); font-weight: 500; }
+
+  .fresh { animation: marked 2.4s ease-out; }
+  @keyframes marked { 0%, 35% { background-color: var(--hl); } 100% { background-color: transparent; } }
+
+  /* ------------------------------------------------------------ assistant */
+  .board { height: 100dvh; display: flex; flex-direction: column; min-height: 0; background: var(--board); color: var(--chalk); }
+  .board header { padding: 1.5rem 1.5rem 1rem; border-bottom: 1px solid var(--chalk-rule); }
+  .board h2 { margin: 0 0 .2rem; font: 700 1.2rem/1.2 var(--display); letter-spacing: -0.01em; }
+  .board header p { margin: 0; color: var(--chalk-dim); font-size: .875rem; }
+
+  .thread { flex: 1; overflow-y: auto; padding: 1.25rem 1.5rem; }
+  .turn { margin-bottom: 1.4rem; max-width: 60ch; }
+  .turn p { margin: 0; white-space: pre-wrap; }
+  .turn.you { padding-left: .9rem; border-left: 2px solid var(--chalk-dim); color: var(--chalk-dim); }
+  .turn.you p { color: var(--chalk); }
+  .turn.err p { color: var(--chalk-red); }
+  .how { margin-top: .55rem; font-size: .8125rem; color: var(--chalk-dim); }
+  .how summary { cursor: pointer; width: fit-content; }
+  .how p { margin-top: .35rem; }
+
+  .starters { margin: 0; padding: 0; list-style: none; }
+  .starters p { margin: 0 0 .6rem; color: var(--chalk-dim); }
+  .starters button { display: block; width: 100%; text-align: left; padding: .65rem 0; background: none; border: 0; border-top: 1px solid var(--chalk-rule); color: var(--chalk); }
+  .starters button:hover { color: var(--hl); }
+
+  .slip { margin: 0 0 1.4rem; padding: 1rem 1.1rem 1rem 1.15rem; max-width: 60ch; background: var(--paper); color: var(--ink); border-left: 5px solid var(--hl); border-radius: 2px 6px 6px 2px; }
+  .slip h3 { margin: 0 0 .6rem; font: 700 1.05rem/1.2 var(--display); }
+  .slip dl { display: grid; grid-template-columns: max-content minmax(0, 1fr); gap: .2rem 1rem; margin: 0 0 .9rem; }
+  .slip dt { color: var(--ink-soft); }
+  .slip dd { margin: 0; overflow-wrap: anywhere; }
+  .slip + .slip { margin-top: -.6rem; }
+  .actions { display: flex; align-items: center; gap: 1.1rem; }
+  .btn-primary { padding: .5rem 1rem; border: 0; border-radius: 6px; background: var(--ink); color: var(--paper); font-weight: 600; }
+  .btn-quiet { padding: .5rem 0; border: 0; background: none; text-decoration: underline; text-underline-offset: 3px; color: var(--ink); }
+  .slip button:disabled { opacity: .5; cursor: default; }
+  .record { margin: 0 0 1.4rem; color: var(--chalk-dim); font-size: .875rem; max-width: 60ch; }
+  .record b { color: var(--chalk); font-weight: 600; }
+
+  .working { color: var(--chalk-dim); margin-bottom: 1.2rem; }
+
+  .composer { padding: 1rem 1.5rem 1.4rem; border-top: 1px solid var(--chalk-rule); }
+  .composer .hint { margin: 0 0 .5rem; min-height: 1.3em; color: var(--chalk-dim); font-size: .8125rem; }
+  .composer .row { display: flex; gap: .6rem; align-items: flex-end; }
+  textarea { flex: 1; resize: none; min-height: 2.9rem; max-height: 9rem; padding: .65rem .8rem; background: transparent; border: 1px solid var(--chalk-dim); border-radius: 6px; color: var(--chalk); }
+  textarea::placeholder { color: var(--chalk-dim); }
+  textarea:disabled { opacity: .5; }
+  .send { padding: .65rem 1.1rem; border: 0; border-radius: 6px; background: var(--chalk); color: var(--board); font-weight: 600; }
+  .send:disabled { opacity: .45; cursor: default; }
+
+  /* ------------------------------------------------------------ small screens */
+  .tabs { display: none; }
+  @media (max-width: 1180px) { .two { grid-template-columns: 1fr; gap: 3rem; } }
+  @media (max-width: 880px) {
+    body { grid-template-columns: 1fr; grid-template-rows: auto minmax(0, 1fr); }
+    .tabs { display: flex; gap: 1.5rem; padding: .75rem 1.25rem 0; background: var(--paper); border-bottom: 1px solid var(--rule); }
+    .tabs button { padding: .4rem 0 .7rem; background: none; border: 0; border-bottom: 3px solid transparent; font-weight: 500; color: var(--ink-soft); }
+    .tabs button[aria-pressed="true"] { color: var(--ink); border-bottom-color: var(--ink); }
+    .desk, .board { grid-row: 2; height: auto; min-height: 0; }
+    body[data-view="desk"] .board, body[data-view="assistant"] .desk { display: none; }
+    .cols { display: none; }
+    .app { grid-template-columns: minmax(0, 1fr) auto; row-gap: .6rem; }
+    .app .track, .app .rejected { grid-column: 1 / -1; grid-row: 2; }
+  }
+  @media (prefers-reduced-motion: reduce) { .fresh { animation: none; background-color: transparent; } }
+</style>
+</head>
+<body data-view="desk">
+
+<nav class="tabs" aria-label="Switch view">
+  <button type="button" data-tab="desk" aria-pressed="true">Desk</button>
+  <button type="button" data-tab="assistant" aria-pressed="false">Assistant</button>
+</nav>
+
+<main class="desk">
+  <div class="masthead">
+    <h1>PlaceMate</h1>
+    <time id="today"></time>
+  </div>
+
+  <section class="section" aria-labelledby="h-apps">
+    <h2 id="h-apps">Applications <span id="apps-count"></span></h2>
+    <div id="apps"></div>
+  </section>
+
+  <div class="two">
+    <section class="section" aria-labelledby="h-practice">
+      <h2 id="h-practice">Practice <span id="solved-count"></span></h2>
+      <p class="caption">Highlighted topics have the fewest problems solved so far.</p>
+      <ul class="topics" id="topics"></ul>
+    </section>
+
+    <section class="section" aria-labelledby="h-rem">
+      <h2 id="h-rem">Reminders</h2>
+      <div id="reminders"></div>
+    </section>
+  </div>
+</main>
+
+<aside class="board" aria-label="Assistant">
+  <header>
+    <h2>Assistant</h2>
+    <p>Runs on your machine. Nothing is saved until you apply it.</p>
+  </header>
+  <div class="thread" id="thread" aria-live="polite"></div>
+  <form class="composer" id="composer">
+    <p class="hint" id="hint"></p>
+    <div class="row">
+      <label class="sr" for="msg">Message</label>
+      <textarea id="msg" rows="1" placeholder="Ask about your applications, practice or reminders"></textarea>
+      <button class="send" id="send" type="submit">Send</button>
+    </div>
+  </form>
+</aside>
+
+<script>
+const $ = (s, r = document) => r.querySelector(s);
+const el = (tag, props = {}, ...kids) => {
+  const n = document.createElement(tag);
+  for (const [k, v] of Object.entries(props)) {
+    if (k === 'class') n.className = v;
+    else if (k === 'text') n.textContent = v;
+    else if (k.startsWith('on')) n.addEventListener(k.slice(2), v);
+    else n.setAttribute(k, v);
+  }
+  for (const kid of kids.flat()) if (kid != null) n.append(kid);
+  return n;
+};
+
+const STAGES = ['APPLIED', 'ONLINE_ASSESSMENT', 'INTERVIEW', 'OFFER'];
+const STAGE_LABEL = { APPLIED: 'Applied', ONLINE_ASSESSMENT: 'Assessment', INTERVIEW: 'Interview', OFFER: 'Offer', REJECTED: 'Rejected' };
+const TOOL_LABEL = {
+  listApplications: 'applications list', addApplication: 'add application', updateApplicationStatus: 'change stage',
+  logDsaProblem: 'log problem', getDsaStats: 'practice stats', findWeakestTopics: 'weakest topics',
+  addReminder: 'add reminder', listUpcomingReminders: 'upcoming reminders'
+};
+const SLIP_TITLE = {
+  addApplication: 'Add an application', updateApplicationStatus: 'Change application stage',
+  logDsaProblem: 'Log a solved problem', addReminder: 'Add a reminder'
+};
+const reduceMotion = matchMedia('(prefers-reduced-motion: reduce)').matches;
+
+const S = { conv: null, pending: null, busy: false, dash: null, seen: new Set(), loaded: false, started: false };
+
+/* ---------------------------------------------------------------- data */
+async function api(path, body) {
+  const res = await fetch(path, body ? { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body) } : undefined);
+  if (!res.ok && res.status >= 500) throw new Error('server');
+  return res.json();
+}
+
+async function loadDash() {
+  try {
+    S.dash = await api('/api/dashboard');
+    renderDash(S.dash);
+  } catch {
+    $('#apps').replaceChildren(el('p', { class: 'empty', text: "Can't load your data. Check that the database is running (docker compose up -d), then reload." }));
+  }
+}
+
+/* ---------------------------------------------------------------- desk */
+const dayStart = s => new Date(s + 'T00:00:00');
+const shortDate = s => dayStart(s).toLocaleDateString('en-IN', { day: 'numeric', month: 'short' });
+
+function relDays(dateStr, todayStr) {
+  const diff = Math.round((dayStart(dateStr) - dayStart(todayStr)) / 86400000);
+  if (diff === 0) return 'today';
+  if (diff === 1) return 'tomorrow';
+  if (diff === -1) return 'yesterday';
+  return diff > 0 ? `in ${diff} days` : `${-diff} days ago`;
+}
+
+function starterLink(text) {
+  return el('button', { type: 'button', onclick: () => { showView('assistant'); prefill(text); }, text });
+}
+
+function renderDash(d) {
+  const next = new Set();
+  const fresh = key => { next.add(key); return S.loaded && !S.seen.has(key); };
+
+  $('#today').textContent = dayStart(d.today).toLocaleDateString('en-IN', { weekday: 'long', day: 'numeric', month: 'long' });
+
+  // applications
+  const apps = $('#apps');
+  apps.replaceChildren();
+  $('#apps-count').textContent = d.applications.length ? `${d.applications.length} tracked` : '';
+  if (!d.applications.length) {
+    apps.append(el('p', { class: 'empty' }, 'Nothing tracked yet. Ask the assistant to add one, for example ',
+      starterLink('Add Razorpay, SDE Intern to my applications'), '.'));
+  } else {
+    apps.append(el('div', { class: 'cols', 'aria-hidden': 'true' }, el('span', { text: 'Company' }),
+      el('div', { class: 'track-head' }, STAGES.map(s => el('span', { text: STAGE_LABEL[s] }))),
+      el('span', { class: 'when', text: 'Applied on' })));
+    const list = el('ul', { class: 'apps' });
+    for (const a of d.applications) {
+      const rejected = a.status === 'REJECTED';
+      const at = STAGES.indexOf(a.status);
+      const middle = rejected
+        ? el('span', { class: 'rejected', text: 'Rejected' })
+        : el('div', { class: 'track', role: 'img', 'aria-label': `Stage: ${STAGE_LABEL[a.status]}` },
+            STAGES.map((s, i) => el('span', { class: 'seg' + (i < at ? ' past' : i === at ? ' now' : '') })));
+      list.append(el('li', { class: 'app' + (rejected ? ' is-rejected' : '') + (fresh(`app:${a.id}:${a.status}`) ? ' fresh' : '') },
+        el('div', { class: 'who' }, el('strong', { text: a.company }), el('span', { text: a.role })),
+        middle,
+        el('span', { class: 'when', text: shortDate(a.appliedOn) })));
+    }
+    apps.append(list);
+  }
+
+  // practice
+  $('#solved-count').textContent = d.totalSolved ? `${d.totalSolved} solved` : '';
+  const max = Math.max(4, ...d.topics.map(t => t.solved));
+  const topics = $('#topics');
+  topics.replaceChildren(...d.topics.map((t, i) =>
+    el('li', { class: 'topic' + (i < 3 ? ' weak' : '') + (fresh(`topic:${t.topic}:${t.solved}`) ? ' fresh' : '') },
+      el('span', { class: 'name', text: t.topic }),
+      el('span', { class: 'bar' }, el('i', { style: `width:${(t.solved / max) * 100}%` })),
+      el('span', { class: 'n', text: String(t.solved) }))));
+
+  // reminders
+  const rem = $('#reminders');
+  rem.replaceChildren();
+  if (!d.reminders.length) {
+    rem.append(el('p', { class: 'empty' }, 'No reminders in the next two months. Try ',
+      starterLink(`Remind me to follow up with Razorpay on ${isoPlus(5)}`), '.'));
+  } else {
+    rem.append(el('ul', { class: 'reminders' }, d.reminders.map(r => {
+      const late = dayStart(r.dueDate) < dayStart(d.today);
+      return el('li', { class: 'reminder' + (late ? ' late' : '') + (fresh(`rem:${r.id}`) ? ' fresh' : '') },
+        el('span', { text: r.text }),
+        el('span', { class: 'due', text: `${shortDate(r.dueDate)}, ${relDays(r.dueDate, d.today)}` }));
+    })));
+  }
+
+  S.seen = next;
+  S.loaded = true;
+}
+
+function isoPlus(days) {
+  const d = new Date(); d.setDate(d.getDate() + days);
+  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
+}
+
+/* ---------------------------------------------------------------- assistant */
+const thread = $('#thread');
+const msg = $('#msg');
+
+function scrollDown() { thread.scrollTo({ top: thread.scrollHeight, behavior: reduceMotion ? 'auto' : 'smooth' }); }
+function prefill(text) { msg.value = text; msg.focus(); autosize(); }
+function autosize() { msg.style.height = 'auto'; msg.style.height = Math.min(msg.scrollHeight, 144) + 'px'; }
+
+function renderStarters() {
+  thread.append(el('div', { class: 'starters', id: 'starters' },
+    el('p', { text: 'You could start with:' }),
+    ...[
+      'Add Razorpay, SDE Intern to my applications',
+      'I solved Course Schedule today, graphs, medium',
+      'Which DSA topics am I weakest in?',
+      `Remind me to apply to Zoho on ${isoPlus(7)}`
+    ].map(t => el('button', { type: 'button', onclick: () => prefill(t), text: t }))));
+}
+
+function addYou(text) {
+  $('#starters')?.remove();
+  thread.append(el('div', { class: 'turn you' }, el('p', { text })));
+  scrollDown();
+}
+
+function addBot(r) {
+  const turn = el('div', { class: 'turn' }, el('p', { text: r.reply || 'Done.' }));
+  if (r.toolStats) {
+    const t = r.toolStats;
+    const saved = t.tokensAll > 0 ? Math.round((1 - t.tokensSelected / t.tokensAll) * 100) : 0;
+    const used = r.toolsUsed.length ? [...new Set(r.toolsUsed)].map(n => TOOL_LABEL[n] || n).join(', ') : 'none';
+    turn.append(el('details', { class: 'how' },
+      el('summary', { text: 'How this was answered' }),
+      el('p', { text: `Tools used: ${used}.` }),
+      el('p', { text: `Sent to the model: ${t.selected} of ${t.total} tools (${t.names.map(n => TOOL_LABEL[n] || n).join(', ')}), about ${saved}% less tool text than sending all of them.` })));
+  }
+  thread.append(turn);
+}
+
+function addError(text) {
+  thread.append(el('div', { class: 'turn err' }, el('p', { text })));
+}
+
+function parseArgs(json) { try { return JSON.parse(json) || {}; } catch { return {}; } }
+
+function describeCall(call) {
+  const a = parseArgs(call.arguments);
+  const rows = [];
+  const add = (k, v) => { if (v != null && v !== '') rows.push([k, String(v)]); };
+  switch (call.tool) {
+    case 'addApplication': add('Company', a.company); add('Role', a.role); add('Link', a.link); break;
+    case 'updateApplicationStatus': {
+      const app = S.dash?.applications.find(x => x.id === Number(a.id));
+      add('Application', app ? `${app.company}, ${app.role}` : `#${a.id}`);
+      if (app) add('Currently', STAGE_LABEL[app.status]);
+      add('Change to', STAGE_LABEL[String(a.status).toUpperCase().replace(' ', '_')] || a.status);
+      break;
+    }
+    case 'logDsaProblem': add('Problem', a.title); add('Topic', a.topic); add('Difficulty', String(a.difficulty || '').toLowerCase()); break;
+    case 'addReminder': add('Reminder', a.text); add('Due', a.dueDate ? shortDate(a.dueDate) : ''); break;
+    default: Object.entries(a).forEach(([k, v]) => add(k, v));
+  }
+  return { title: SLIP_TITLE[call.tool] || call.tool, rows };
+}
+
+function renderSlips(pending) {
+  const wrap = el('div', { id: 'slips' });
+  const calls = pending.calls.map(describeCall);
+  calls.forEach(c => wrap.append(el('section', { class: 'slip', 'aria-label': c.title },
+    el('h3', { text: c.title }),
+    el('dl', {}, c.rows.flatMap(([k, v]) => [el('dt', { text: k }), el('dd', { text: v })])))));
+  const apply = el('button', { type: 'button', class: 'btn-primary', text: calls.length > 1 ? `Apply ${calls.length} changes` : 'Apply change', onclick: () => decide(true) });
+  const discard = el('button', { type: 'button', class: 'btn-quiet', text: 'Discard', onclick: () => decide(false) });
+  wrap.lastElementChild.append(el('div', { class: 'actions' }, apply, discard));
+  wrap.dataset.summary = calls.map(c => `${c.title.toLowerCase()}${c.rows[0] ? ` (${c.rows[0][1]})` : ''}`).join('; ');
+  thread.append(wrap);
+  apply.focus({ preventScroll: true });
+}
+
+function setBusy(on) {
+  S.busy = on;
+  syncComposer();
+}
+
+function syncComposer() {
+  const blocked = S.busy || !!S.pending;
+  msg.disabled = blocked;
+  $('#send').disabled = blocked;
+  $('#hint').textContent = S.pending ? 'Apply or discard the change above to keep going.' : '';
+  if (!blocked) msg.focus({ preventScroll: true });
+}
+
+let timer = null;
+function startWorking() {
+  const n = el('p', { class: 'working', id: 'working' }, 'Working… 0s');
+  thread.append(n);
+  const t0 = Date.now();
+  timer = setInterval(() => { n.textContent = `Working… ${Math.round((Date.now() - t0) / 1000)}s`; }, 1000);
+  scrollDown();
+}
+function stopWorking() { clearInterval(timer); $('#working')?.remove(); }
+
+function handle(r) {
+  S.conv = r.conversationId || S.conv;
+  if (r.status === 'ERROR') addError(r.reply);
+  else if (r.status === 'ANSWER') addBot(r);
+  else if (r.status === 'CONFIRMATION_REQUIRED') { S.pending = r.pending; renderSlips(r.pending); }
+  if (r.toolsUsed?.length) loadDash();
+  scrollDown();
+}
+
+async function send(text) {
+  addYou(text);
+  setBusy(true);
+  startWorking();
+  try {
+    handle(await api('/api/chat', { conversationId: S.conv, message: text }));
+  } catch {
+    addError("Couldn't reach PlaceMate. Check that the app is running on port 8080, then send again.");
+  } finally {
+    stopWorking();
+    setBusy(false);
+  }
+}
+
+async function decide(approved) {
+  const p = S.pending;
+  if (!p) return;
+  const wrap = $('#slips');
+  wrap.querySelectorAll('button').forEach(b => { b.disabled = true; });
+  setBusy(true);
+  startWorking();
+  try {
+    const r = await api('/api/chat/confirm', { conversationId: S.conv, actionId: p.actionId, approved });
+    wrap.replaceWith(el('p', { class: 'record' }, el('b', { text: approved ? 'Applied: ' : 'Discarded: ' }), wrap.dataset.summary));
+    S.pending = null;
+    handle(r);
+    if (approved) loadDash();
+  } catch {
+    wrap.querySelectorAll('button').forEach(b => { b.disabled = false; });
+    addError("Couldn't reach PlaceMate. Your change is still waiting. Try again.");
+  } finally {
+    stopWorking();
+    setBusy(false);
+  }
+}
+
+$('#composer').addEventListener('submit', e => {
+  e.preventDefault();
+  const text = msg.value.trim();
+  if (!text || S.busy || S.pending) return;
+  msg.value = '';
+  autosize();
+  send(text);
+});
+msg.addEventListener('keydown', e => {
+  if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); $('#composer').requestSubmit(); }
+});
+msg.addEventListener('input', autosize);
+
+/* ---------------------------------------------------------------- small-screen tabs */
+function showView(v) {
+  document.body.dataset.view = v;
+  document.querySelectorAll('[data-tab]').forEach(b => b.setAttribute('aria-pressed', String(b.dataset.tab === v)));
+}
+document.querySelectorAll('[data-tab]').forEach(b => b.addEventListener('click', () => showView(b.dataset.tab)));
+
+renderStarters();
+loadDash();
+</script>
+</body>
+</html>
