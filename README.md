@@ -63,7 +63,7 @@ Run the tests with `mvn test` (no Ollama or database needed; they use mocks).
 their definitions versus sending all of them. Try a few messages, write down the real numbers, and use those
 on your resume rather than anything estimated in advance.
 
-## Known limitations (good interview material)
+## Known limitations 
 
 - Conversation history and pending actions are held in memory and expire after 30 minutes. A restart loses them.
   Next step: persist them in Postgres.
